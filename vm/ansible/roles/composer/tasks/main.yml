@@ -1,0 +1,27 @@
+---
+# These tasks install composer.
+
+- name: Check Composer Init
+  stat: path=/usr/local/bin/composer
+  register: init_composer
+  become: true
+
+- name: Download Composer installer
+  command: chdir=../ php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+  become: true
+  when: not init_composer.stat.exists
+
+- name: Composer install
+  command: chdir=../ php composer-setup.php
+  become: true
+  when: not init_composer.stat.exists
+
+- name: Delete Composer installer
+  command: chdir=../ php -r "unlink('composer-setup.php');"
+  become: true
+  when: not init_composer.stat.exists
+
+- name: Move Composer
+  command: chdir=../ mv composer.phar /usr/local/bin/composer
+  become: true
+  when: not init_composer.stat.exists

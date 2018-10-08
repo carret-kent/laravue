@@ -1,0 +1,122 @@
+---
+# These tasks install mysql modules.
+
+- name: UnInstall MariaDB package
+  yum: name={{ item }} state=absent
+  with_items:
+   - mariadb-libs
+  become: true
+
+- name: Install mysql installer package
+  yum: name={{ item }} state=present
+  with_items:
+   - http://dev.mysql.com/get/mysql57-community-release-el7-7.noarch.rpm
+  become: true
+  
+- name: Install mysql package
+  yum: name={{ item }} state=present
+  with_items:
+   - mysql
+   - mysql-devel
+   - mysql-server
+   - mysql-utilities
+   - MySQL-python
+  become: true
+
+- name: Check Mysql Init
+  stat: path=/etc/my.cnf.org
+  register: init_mysql
+  become: true
+    
+- name: Backup my.conf
+  copy: 
+    src: /etc/my.cnf
+    dest: /etc/my.cnf.org
+    owner: root
+    group: root
+    mode: "u=rw,g=r,o=r"
+  become: true
+  when: not init_mysql.stat.exists
+
+- name: Change my.conf
+  shell: "echo 'skip-grant-tables' >> /etc/my.cnf"
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Service mysqld start
+  service: name=mysqld state=restarted enabled=yes
+  become: true
+  when: not init_mysql.stat.exists
+
+- name: Reset Root Password
+  shell: "mysql -uroot mysql -e\"UPDATE user SET authentication_string=password('root'), password_expired='N' WHERE user='root'; flush privileges;\""
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Return my.conf
+  copy: 
+    src: /etc/my.cnf.org
+    dest: /etc/my.cnf
+    owner: root
+    group: root
+    mode: "u=rw,g=r,o=r"
+  become: true
+  when: not init_mysql.stat.exists
+
+- name: Change my.conf with sql_mode
+  shell: "echo 'sql_mode=' >> /etc/my.cnf"
+  become: true
+  when: not init_mysql.stat.exists
+
+- name: Init .my.conf
+  copy: 
+    src: /home/vagrant/ansible/roles/mysql/files/.my.cnf
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: "u=rw,g=r,o=r"
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Service mysqld start
+  service: name=mysqld state=restarted enabled=yes
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Set Password Length
+  shell: "mysql -uroot mysql -e\"SET GLOBAL validate_password_length=4;\""
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Set Password Policy
+  shell: "mysql -uroot mysql -e\"SET GLOBAL validate_password_policy=LOW;\""
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Create Application Database
+  mysql_db: name={{ db_name }} state=present
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Create Application DB User
+  mysql_user: name={{ db_user }} password={{ db_pass }} priv=*.*:ALL host='%' state=present
+  become: true
+  when: not init_mysql.stat.exists
+  
+- name: Create Table
+  shell: "mysql -uroot mysql -e\"SOURCE /home/vagrant/ansible/roles/mysql/files/{{ db_file }};\""
+  become: true
+  
+- name: Insert Data
+  shell: " find /home/vagrant/ansible/roles/mysql/files/{{ db_insert_dir }} -name \"*.sql\" | sort | while read DIR;  do mysql -uroot mysql -e\"SOURCE ${DIR};\"; done"
+  become: true
+  
+- name: Generate Timezone.sql
+  shell: "/usr/bin/mysql_tzinfo_to_sql /usr/share/zoneinfo > ~/timezone.sql"
+  become: true
+
+- name: Insert Timezone
+  shell: "mysql -uroot mysql -e\"SOURCE ~/timezone.sql;\""
+  become: true
+  
+ 

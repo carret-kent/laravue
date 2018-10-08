@@ -1,0 +1,89 @@
+---
+# These tasks install nginx and the php modules.
+
+- name: Install php repository
+  yum: name={{ item }} state=present
+  with_items:
+   - epel-release
+   - http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+  become: true
+
+- name: Install nginx
+  yum: name={{ item }} state=present enablerepo=remi
+  with_items:
+   - nginx
+   - mod_ssl
+  become: true
+  
+- name: Install php
+  yum: name={{ item }} state=present enablerepo=remi,remi-php72
+  with_items:
+   - php-fpm
+   - php
+   - php-cli
+   - php-devel
+   - php-common
+   - php-mysql
+   - php-mbstring
+   - php-pdo
+   - php-gd
+   - php-pdo
+   - php-xml
+  become: true
+
+- name: Fix php.ini display_errors
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*display_errors = Off'
+    line: 'display_errors = On'
+  become: true
+
+- name: Fix php.ini date.timezone
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*;date.timezone ='
+    line: 'date.timezone = Asia/Tokyo'
+  become: true
+
+- name: Fix php.ini mbstring.language
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*;mbstring.language = Japanese'
+    line: 'mbstring.language = Japanese'
+  become: true
+
+- name: setup nginx
+  template:
+    src: etc/nginx/{{ nginx_file }}.conf
+    dest: /etc/nginx/nginx.conf
+  become: true
+  
+- name: setup php-fpm
+  template:
+    src: etc/php-fpm.d/www.conf
+    dest: /etc/php-fpm.d/www.conf
+  become: true
+  
+- name: change permission
+  file:
+    path: "{{ item }}"
+    owner: vagrant
+    group: vagrant
+    recurse: yes
+  with_items:
+   - /var/log/nginx
+   - /var/lib/nginx
+  become: true
+    
+- name: start services
+  service: name={{item}} state=started enabled=yes
+  with_items:
+  - nginx
+  - php-fpm
+  become: true

@@ -1,0 +1,52 @@
+---
+# These tasks install php modules.
+  
+- name: Install php repository
+  yum: name={{ item }} state=present
+  with_items:
+   - epel-release
+   - http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+  become: true
+
+- name: Install php
+  yum: name={{ item }} state=present enablerepo=remi,remi-php71
+  with_items:
+   - php-fpm
+   - php
+   - php-cli
+   - php-devel
+   - php-common
+   - php-mysql
+   - php-mbstring
+   - php-pdo
+   - php-gd
+   - php-pdo
+   - php-xml
+  become: true
+
+- name: Fix php.ini display_errors
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*display_errors = Off'
+    line: 'display_errors = On'
+  become: true
+
+- name: Fix php.ini date.timezone
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*;date.timezone ='
+    line: 'date.timezone = Asia/Tokyo'
+  become: true
+
+- name: Fix php.ini mbstring.language
+  lineinfile:
+    dest: /etc/php.ini
+    state: present
+    backrefs: yes
+    regexp: '^#?\s*;mbstring.language = Japanese'
+    line: 'mbstring.language = Japanese'
+  become: true

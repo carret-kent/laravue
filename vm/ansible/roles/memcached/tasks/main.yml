@@ -1,0 +1,14 @@
+---
+# These tasks install memcached modules.
+
+- name: Install memcached
+  yum: name={{ item }} state=present
+  with_items:
+   - memcached
+   - memcached-devel
+   - libmemcached-devel
+  become: true
+
+- name: Service memcached start
+  service: name=memcached state=started enabled=yes
+  become: true

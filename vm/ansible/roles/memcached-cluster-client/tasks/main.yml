@@ -1,0 +1,80 @@
+---
+# These tasks install memcached cluster client modules.
+
+- name: Check Memcached Cluster Client Init
+  stat: path=/etc/php.d/50-memcached.ini
+  register: init_memcached_client
+  become: true
+  
+- name: Install memcached dependency
+  yum: name={{ item }} state=present
+  with_items:
+   - gcc
+   - zlib-devel
+   - git
+   - unzip
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Wget Clone Memcached
+  get_url: 
+    url: https://elasticache-downloads.s3.amazonaws.com/ClusterClient/PHP-7.0/latest-64bit
+    dest: ../AmazonElastiCacheClusterClient.tar.gz
+    force: yes
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Expansion tarfile
+  command: chdir=../ tar -zxvf AmazonElastiCacheClusterClient.tar.gz
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: module move
+  command: chdir=../ mv artifact/amazon-elasticache-cluster-client.so /usr/lib64/php/modules/
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: delete tmp file
+  file: path=../artifact state=absent
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: delete tmp file
+  file: path=../AmazonElastiCacheClusterClient.tar.gz state=absent
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: add php setting
+  file:
+    path: /etc/php.d/50-memcached.ini
+    state: touch
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: add php setting
+  lineinfile: dest=/etc/php.d/50-memcached.ini line='extension=amazon-elasticache-cluster-client.so'
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: Link to libsasl2
+  file:
+    src: /lib64/libsasl2.so.3.0.0
+    dest: /lib64/libsasl2.so.2
+    state: link
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: restart php-fpm
+  service: name=php-fpm state=restarted enabled=yes
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Check Exist Nginx
+  stat: path=/etc/nginx/
+  register: exist_nginx
+  become: true
+
+- name: restart nginx
+  service: name=nginx state=restarted enabled=yes
+  become: true
+  when: [not init_memcached_client.stat.exists,exist_nginx.stat.exists]

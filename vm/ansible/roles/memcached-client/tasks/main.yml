@@ -1,0 +1,52 @@
+---
+# These tasks install memcached client modules.
+
+- name: Check Memcached Client Init
+  stat: path=/usr/lib64/php/modules/memcached.so
+  register: init_memcached_client
+  become: true
+  
+- name: Install memcached dependency
+  yum: name={{ item }} state=present
+  with_items:
+   - gcc
+   - zlib-devel
+   - git
+   - libmemcached-devel
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: Git Clone Memcached
+  command: chdir=../ git clone -b php7 --depth 1 https://github.com/php-memcached-dev/php-memcached
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Phpize
+  command: chdir=../php-memcached phpize
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: Configure Memcached
+  command: chdir=../php-memcached ./configure
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: Make Memcached
+  command: chdir=../php-memcached make
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Make Install Memcached
+  command: chdir=../php-memcached make install
+  become: true
+  when: not init_memcached_client.stat.exists
+
+- name: Delete Tmp Files
+  file: path=../php-memcached state=absent
+  become: true
+  when: not init_memcached_client.stat.exists
+  
+- name: apply lang configuration
+  lineinfile: dest=/etc/php.ini line='extension=memcached.so'
+  become: true
+  when: not init_memcached_client.stat.exists

@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  config.vm.define :db do |db|
+    db.vm.box = "bento/centos-7.4"
+    db.vm.network "forwarded_port", guest: 3306,  host: 12000, host_ip: "127.0.0.1" # mysql
+    db.vm.network "forwarded_port", guest: 11211, host: 12003, host_ip: "127.0.0.1" # memcached
+    db.vm.network "private_network", ip: "192.168.30.10"
+    db.vm.synced_folder "./ansible", "/home/vagrant/ansible", :owner=> 'vagrant', :group=>'vagrant', :mount_options => ['dmode=775', 'fmode=775']
+    db.vm.provider :virtualbox do |vbox|
+      vbox.name = "local-db"
+      vbox.memory = "2048"
+    end
+    db.ssh.insert_key = false
+    db.vm.provision "shell", run: "always", inline: <<-SHELL
+      sudo mv -f /etc/resolv.conf /etc/resolv.conf.org
+      sudo sed -e "s/10.0.2.3/8.8.8.8/" /etc/resolv.conf.org >> /etc/resolv.conf
+    SHELL
+    db.vm.provision "shell", inline: <<-SHELL
+      sudo yum -y install ansible;
+      cd ansible;
+      ansible-playbook -i hosts-Local -c local site-Local.yml -t db
+    SHELL
+  end
+
+  config.vm.define :admin do |admin|
+    admin.vm.box = "bento/centos-7.4"
+    admin.vm.network "forwarded_port", guest: 80,   host: 12030, host_ip: "127.0.0.1" # http
+    admin.vm.network "forwarded_port", guest: 443,  host: 12031, host_ip: "127.0.0.1" # https
+    admin.vm.network "private_network", ip: "192.168.30.20"
+    admin.vm.synced_folder "./ansible", "/home/vagrant/ansible", :owner=> 'vagrant', :group=>'vagrant', :mount_options => ['dmode=775', 'fmode=775']
+    admin.vm.synced_folder "../", "/var/www/html", :owner=> 'vagrant', :group=>'vagrant', :mount_options => ['dmode=777', 'fmode=777']
+    admin.vm.provider :virtualbox do |vbox|
+      vbox.name = "local-admin"
+    end
+    admin.ssh.insert_key = false
+    admin.vm.provision "shell", run: "always", inline: <<-SHELL
+      sudo mv -f /etc/resolv.conf /etc/resolv.conf.org
+      sudo sed -e "s/10.0.2.3/8.8.8.8/" /etc/resolv.conf.org >> /etc/resolv.conf
+    SHELL
+    admin.vm.provision "shell", inline: <<-SHELL
+      sudo yum -y install ansible;
+      cd ansible;
+      ansible-playbook -i hosts-Local -c local site-Local.yml -t admin
+    SHELL
+  end
+end

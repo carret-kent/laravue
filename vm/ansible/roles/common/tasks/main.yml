@@ -1,0 +1,39 @@
+---
+# This playbook contains common plays that will be run on all nodes.
+
+- name: Install common dependencies1
+  yum: name={{ item }} state=installed
+  with_items:
+   - man
+   - man-pages.noarch
+   - man-pages-ja.noarch
+   - zlib-devel
+  become: true
+
+- name: Install common dependencies2
+  yum: name={{ item }} state=present
+  with_items:
+  - gcc
+  - zlib-devel
+  - git
+  - unzip
+  become: true
+
+- name: apply timezone configuration
+  file:
+    src: /usr/share/zoneinfo/Asia/Tokyo
+    path: /etc/localtime
+    state: link
+    force: yes
+  become: true
+
+- name: apply lang configuration
+  lineinfile: dest=/etc/profile line='export LANG=ja_JP.utf8'
+  become: true
+
+- name: apply timezone configuration2
+  lineinfile: dest=/etc/sysconfig/clock line={{ item }} create=yes
+  with_items:
+   - 'ZONE="Asia/Tokyo"'
+   - 'UTC=false'
+  become: true
